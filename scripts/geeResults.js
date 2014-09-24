@@ -1,0 +1,426 @@
+/*jslint plusplus: true */
+require(["dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapToggle", "esri/graphicsUtils", "dojo/dom-style", "dojo/dom-construct", "dojox/charting/themes/ThreeD", "dojox/charting/Chart", "dojo/io-query", "dgrid/Grid", "dojo/request/script", "dojo/Deferred", "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/keys", "dojox/gfx", "esri/geometry/Point", "esri/symbols/SimpleLineSymbol", "dojo/_base/Color", "esri/symbols/SimpleMarkerSymbol", "esri/graphic", "esri/layers/GraphicsLayer", "dojo/_base/array", "esri/geometry/screenUtils", "esri/geometry/Polygon", "dojo/request/xhr", "esri/geometry/webMercatorUtils", "dojo/on", "esri/SpatialReference", "esri/geometry/Extent", "esri/layers/WMSLayerInfo", "esri/layers/WMSLayer", "esri/map", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!", "dojox/charting/plot2d/Lines", "dojox/charting/axis2d/Default"], function(lang, HorizontalSlider, BasemapToggle, graphicsUtils, domStyle, domConstruct, blue, Chart, ioQuery, Grid, script, Deferred, dom, domConstruct, domAttr, keys, gfx, Point, SimpleLineSymbol, Color, SimpleMarkerSymbol, Graphic, GraphicsLayer, array, screenUtils, Polygon, xhr, webMercatorUtils, on, SpatialReference, Extent, WMSLayerInfo, WMSLayer, Map, BorderContainer, ContentPane) {
+	var WMS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/wms";
+	var WFS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/ows";
+	var LAYER_NAME = "lrmexternal:_gee_validated_sites_subset_pixel_values";
+	var IDENTIFY_RADIUS = 3;
+	var LASSO_SURFACE_ID = "lassoSurface";
+	var BBOXSIZE = 1910.925707126968;
+	var SITE_IMAGE_SIZE = 200;
+	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, chart;
+	// create the BorderContainer and attach it to our appLayout div - CubanShirts,Shrooms,ThreeD,Tufte
+	var appLayout = new BorderContainer({
+		design : "headline"
+	}, "appLayout");
+	appLayout.addChild(new ContentPane({
+		region : "top",
+		id : "topCP",
+		content : "Google Earth Engine Results Analyser"
+	}));
+	appLayout.addChild(new ContentPane({
+		region : "left",
+		id : "leftCP"
+	}));
+	appLayout.addChild(new ContentPane({
+		region : "center",
+		id : "centerCP",
+		content : "<div id='mapCanvas'><div id='mapDiv'><div id='BasemapToggle'></div><div id='slider'></div></div></div>"
+	}));
+	appLayout.addChild(new ContentPane({
+		region : "right",
+		id : "rightCP",
+		content : "<div id='confusionMatrixGrid' class='slate'></div><div id='chartHolder'><img src='images/loading.gif' id='loading2'><div id='spectralChart'></div></div><div id='siteImage'><img src='images/loading.gif' id='loading'><img id='geeimage'></div>",
+		splitter : true
+	}));
+	appLayout.addChild(new ContentPane({
+		region : "bottom",
+		id : "bottomCP",
+		content : "Header content (bottom)"
+	}));
+	appLayout.startup();
+	servicesDomain = (document.domain === "ehabitat-wps.jrc.it") ? "http://dopa-services.jrc.it/" : "http://dopa-services.jrc.ec.europa.eu/";
+	map = new Map("mapDiv", {
+		zoom : 3,
+		center : [0, 25],
+		basemap : "topo"
+	});
+	var toggle = new BasemapToggle({
+		map : map,
+		basemap : "satellite"
+	}, "BasemapToggle");
+	toggle.startup();
+	map.on("load", createEventListeners);
+	var layer1 = new WMSLayerInfo({
+		name : LAYER_NAME,
+		title : LAYER_NAME
+	});
+	var resourceInfo = {
+		extent : new Extent(-180, -90, 180, 90, {
+			wkid : 4326
+		}),
+		layerInfos : [layer1]
+	};
+	var wmsLayer = new WMSLayer(WMS_ENDPOINT, {
+		resourceInfo : resourceInfo,
+		visibleLayers : [LAYER_NAME]
+	});
+	wmsLayer.spatialReferences[0] = 900913;
+	selectedFeaturesLayer = new GraphicsLayer();
+	highlightedFeaturesLayer = new GraphicsLayer();
+	geeImageFeatureLayer = new GraphicsLayer();
+	map.addLayers([wmsLayer, selectedFeaturesLayer, highlightedFeaturesLayer, geeImageFeatureLayer]);
+	createConfusionMatrix();
+	createSpectralChart();
+	var slider = new HorizontalSlider({
+		name : "slider",
+		value : 1,
+		maximum : 1,
+		intermediateChanges : true,
+		onChange : function(value) {
+			map.getLayer(map.basemapLayerIds[0]).setOpacity(value);
+		}
+	}, "slider");
+
+	function createEventListeners() {
+		map.on("click", mapClick);
+		map.on("mouse-down", mapMouseDown);
+		map.on("mouse-drag", mapMouseDrag);
+		map.on("mouse-up", mapMouseUp);
+		on(document, "keydown", keydown);
+		on(document, "keyup", keyup);
+	}
+
+	function createConfusionMatrix() {
+		var columns = [{
+			label : 'Predicted',
+			field : 'predicted'
+		}, {
+			label : 'Actual',
+			field : 'actual'
+		}, {
+			label : 'Count',
+			field : '_count'
+		}, {
+			label : ' ',
+			field : 'complexCell',
+			renderCell : function(object, value, node, options) {
+				var link = domConstruct.create("a", {
+					href : "#",
+					innerHTML : "show",
+					title : "Show " + object.actual + ' points'
+				}, node);
+				on(link, "click", showConfusionPoints);
+				var link2 = domConstruct.create("a", {
+					href : "#",
+					innerHTML : "zoom",
+					title : "Zoom to " + object.actual + ' points'
+				}, node);
+				on(link2, "click", zoomToConfusionPoints);
+			}
+		}];
+		confusionMatrixGrid = new Grid({
+			columns : columns
+		}, "confusionMatrixGrid");
+
+	}
+
+	function createSpectralChart() {
+		chart = new Chart("spectralChart");
+		chart.setTheme(blue);
+		chart.addPlot("default", {
+			type : "Lines",
+			markers : true
+		});
+		chart.addAxis("x", {
+			title : "Band",
+			minorTicks : false,
+			titleOrientation : "away",
+			htmlLabels : false,
+			labels : [{
+				value : 1,
+				text : "B1"
+			}, {
+				value : 2,
+				text : "B2"
+			}, {
+				value : 3,
+				text : "B3"
+			}, {
+				value : 4,
+				text : "B4"
+			}, {
+				value : 5,
+				text : "B5"
+			}, {
+				value : 6,
+				text : "B6"
+			}, {
+				value : 7,
+				text : "B7"
+			}, {
+				value : 8,
+				text : "B8"
+			}, {
+				value : 9,
+				text : "B9"
+			}]
+		});
+		chart.addAxis("y", {
+			min : 0,
+			max : 0.5,
+			vertical : true,
+			fixLower : "major",
+			fixUpper : "major",
+			majorLabels : true,
+			minorLabels : true,
+			title : 'Reflectance'
+		});
+	}
+
+	function mapClick(event) {
+		var screenPoint = event.screenPoint;
+		var clickArea = new Polygon([[screenPoint.x - IDENTIFY_RADIUS, screenPoint.y - IDENTIFY_RADIUS], [screenPoint.x - IDENTIFY_RADIUS, screenPoint.y + IDENTIFY_RADIUS], [screenPoint.x + IDENTIFY_RADIUS, screenPoint.y + IDENTIFY_RADIUS], [screenPoint.x + IDENTIFY_RADIUS, screenPoint.y - IDENTIFY_RADIUS]]);
+		identifyFeatures(clickArea);
+	}
+
+	function keydown(event) {
+		switch (event.keyCode) {
+		case (keys.ALT) :
+			map.disablePan();
+			break;
+		case (keys.ESCAPE) :
+			clearSelectedFeatures();
+			break;
+		};
+	}
+
+	function keyup(event) {
+		switch (event.keyCode) {
+		case (keys.ALT) :
+			map.enablePan();
+			break;
+		};
+	}
+
+	function mapMouseDown(event) {
+		if (event.altKey == true) {
+			startPoint = event.screenPoint;
+			clearSelectedFeatures();
+			clearHighlightedFeatures();
+			createLassoSurface();
+		};
+	}
+
+	function createLassoSurface() {
+		lassoSurface = gfx.createSurface("mapCanvas", map.width, map.height);
+		domAttr.set(lassoSurface.rawNode, "id", LASSO_SURFACE_ID);
+	}
+
+	function destroyLassoSurface() {
+		domConstruct.destroy(dom.byId(LASSO_SURFACE_ID));
+		lassoSurface = undefined;
+	}
+
+	function mapMouseDrag(event) {
+		if (!map.isPan) {//i.e. drawing a lasso
+			lassoSurface.clear();
+			var width = event.screenPoint.x - startPoint.x;
+			var height = event.screenPoint.y - startPoint.y;
+			var rectangle = lassoSurface.createRect({
+				x : startPoint.x,
+				y : startPoint.y,
+				width : width,
+				height : height
+			});
+			rectangle.setStroke("blue");
+		}
+	}
+
+	function mapMouseUp(event) {
+		var minx, miny, max, maxy;
+		var endPoint = event.screenPoint;
+		if (startPoint !== undefined) {
+			if (startPoint.x < endPoint.x) {
+				minx = startPoint.x;
+				maxx = endPoint.x;
+			} else {
+				minx = endPoint.x;
+				maxx = startPoint.x;
+			}
+			if (startPoint.y < endPoint.y) {
+				miny = startPoint.y;
+				maxy = endPoint.y;
+			} else {
+				miny = endPoint.y;
+				maxy = startPoint.y;
+			}
+			identifyFeatures(new Polygon([[minx, miny], [minx, maxy], [maxx, maxy], [maxx, miny]]));
+			destroyLassoSurface();
+			startPoint = undefined;
+		};
+	}
+
+	function identifyFeatures(selectionAreaScreen) {
+		var selectionAreaMap = screenUtils.toMapGeometry(map.extent, map.width, map.height, selectionAreaScreen);
+		var extent = webMercatorUtils.webMercatorToGeographic(selectionAreaMap).getExtent();
+		selectedFeaturesLayer.clear();
+		var wfsquery = {
+			REQUEST : 'GetFeature',
+			SERVICE : 'WFS',
+			VERSION : '1.0.0',
+			TYPENAME : LAYER_NAME,
+			BBOX : extent.xmin.toString() + "," + extent.ymin.toString() + "," + extent.xmax.toString() + "," + extent.ymax.toString(),
+			outputFormat : "json"
+		};
+		//run a synchronous query to get the features from WFS
+		xhr(WFS_ENDPOINT, {
+			query : wfsquery,
+			handleAs : "json",
+			sync : true,
+			headers : {
+				"X-Requested-With" : null
+			}
+		}).then(function(data) {
+			selectFeatures(data.features);
+		}, function(err) {
+			alert("Unable to get data from WFS");
+		});
+	}
+
+	function selectFeatures(features) {
+		array.forEach(features, function(item) {
+			var point = getPointFromWFSFeature(item);
+			var geometry = webMercatorUtils.geographicToWebMercator(point);
+			var graphic = new Graphic(point, new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 6, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255, 0, 0, 1]), 1), new Color([0, 255, 255, 1])), item.properties);
+			selectedFeaturesLayer.add(graphic);
+			selectedFeatures.push(item.properties.objectid);
+		});
+		if (features.length > 0) {
+			getSiteImageUrl(features[0], true);
+			populateSpectralChart(features);
+		};
+		rest_getConfusionMatrix(selectedFeatures);
+	}
+
+	function getPointFromWFSFeature(feature) {
+		var coord = feature.geometry.coordinates;
+		var point = new Point(coord[0], coord[1], new SpatialReference({
+			wkid : 4326
+		}));
+		return point;
+	}
+
+	function clearSelectedFeatures() {
+		selectedFeaturesLayer.clear();
+		selectedFeatures.length = 0;
+	}
+
+	function clearHighlightedFeatures() {
+		highlightedFeaturesLayer.clear();
+		highlightedFeaturesLayer.length = 0;
+	}
+
+	function rest_getConfusionMatrix(objectids) {
+		var deferred;
+		deferred = script.get(servicesDomain + "services/especies/_get_gee_validated_sites_confusion_matrix", {
+			query : {
+				objectids : objectids.join(","),
+				format : 'json'
+			},
+			jsonp : "callback"
+		});
+		deferred.then(function(response) {
+			if (!response.metadata.success) {
+				alert('Unable to get Confusion Matrix data. ' + response.metadata.error);
+			} else {
+				confusionMatrixGrid.refresh();
+				confusionMatrixGrid.renderArray(response.records);
+			}
+		});
+		return deferred;
+	}
+
+	function populateSpectralChart(features) {
+		domStyle.set("loading2", "display", "block");
+		domStyle.set("loading2", "z-index", "1");
+		clearSpectralChart();
+		array.forEach(features, function(feature, index) {
+			var pixelValues = [], color;
+			for (p in feature.properties) {
+				if (p.substr(0, 4) === 'band' && p.length === 5) {
+					pixelValues.push({
+						x : Number(p.substr(4, 5)),
+						y : feature.properties[p]
+					});
+				};
+			}
+			color = (feature.properties.actual_class==="3") ? "green" : "red";
+			chart.addSeries("series" + index, pixelValues, {
+				stroke : {
+					color : color,
+					width : 2
+				},
+				fill : color
+			});
+		});
+		chart.render();
+		domStyle.set("loading2", "z-index", "-1");
+	}
+
+	function clearSpectralChart() {
+		for (var i = chart.series.length - 1; i > 0; i--) {
+			chart.removeSeries(chart.series[i].name);
+		}
+	}
+
+	function getSiteImageUrl(site, rgb) {
+		var p = getPointFromWFSFeature(site);
+		geeImageFeatureLayer.clear();
+		//add a cross to th efeature clicked
+		geeImageFeatureLayer.add(new Graphic(p, new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CROSS, 40, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 0, 255, 1]), 1), new Color([255, 0, 255, 1]))));
+		var sitePoint = webMercatorUtils.geographicToWebMercator(p);
+		var layersStr = rgb ? '{"sceneid":"' + site.properties.sceneid + '","redBand":"B4","greenBand":"B3","blueBand":"B2","min":0,"max":0.4}' : '{"sceneid":"' + site.properties.sceneid + '","redBand":"B7","greenBand":"B5","blueBand":"B4","min":0,"max":0.4}';
+		var bbStr = (sitePoint.x - BBOXSIZE) + "," + (sitePoint.y - BBOXSIZE) + "," + (sitePoint.x + BBOXSIZE) + "," + (sitePoint.y + BBOXSIZE);
+		var params = {
+			SERVICE : "wms",
+			REQUEST : "GetMap",
+			FORMAT : "image/png",
+			TRANSPARENT : "TRUE",
+			STYLES : "",
+			VERSION : "1.3.0",
+			LAYERS : layersStr,
+			WIDTH : SITE_IMAGE_SIZE,
+			HEIGHT : SITE_IMAGE_SIZE,
+			CRS : "EPSG:102100",
+			BBOX : bbStr
+		};
+		var paramsQuery = ioQuery.objectToQuery(params);
+		domStyle.set("loading", "display", "block");
+		domStyle.set("loading", "z-index", "1");
+		script.get(servicesDomain + "gee/WMS_image", {
+			query : params,
+			jsonp : "callback"
+		}).then(lang.hitch(p, function(response) {
+			domAttr.set(dom.byId("geeimage"), "src", response.url);
+			domStyle.set("loading", "z-index", "-1");
+		}));
+	}
+
+	function showConfusionPoints(event) {
+		highlightedFeaturesLayer.clear();
+		var actual = event.target.title.substring(5, event.target.title.length - 7);
+		array.forEach(selectedFeaturesLayer.graphics, function(graphic, index) {
+			if (graphic.attributes.actual_class_label === actual) {
+				highlightedFeaturesLayer.add(new Graphic(lang.clone(graphic.geometry), new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 7, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255, 0, 255, 1]), 1), new Color([255, 0, 255, 1])), lang.clone(graphic.attributes)));
+			};
+		});
+	}
+
+	function zoomToConfusionPoints(event) {
+		if (highlightedFeaturesLayer.graphics.length !== 0) {
+			var myFeatureExtent = graphicsUtils.graphicsExtent(highlightedFeaturesLayer.graphics);
+			map.setExtent(myFeatureExtent, true);
+		};
+	}
+
+});
