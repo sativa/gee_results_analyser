@@ -90,3 +90,6 @@ span {
 .field-_count {
 	width: 50px;
 }
+.col1{
+	min-width:100px;
+}
