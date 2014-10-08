@@ -313,20 +313,28 @@ require({
 			populateSpectralChart(features);
 			var templateString = "", properties = features[0].properties;
 			for (key in properties) {
-				if ((key !== "actual_class") && (key !== "actual_class_label") && (key !== "applied_masks") && (key !== "hsv_bands") && (key !== "predicted_class") && (key !== "predicted_class_label") && (key !== "bqa")) {
-					templateString = templateString + "<tr><td>" + key + ":</td><td>${" + key + "}</td></tr>";
+				if ((key === "objectid") || (key === "lng") || (key === "lat") || (key === "sceneid") || (key === "cloud_cover") || (key === "68.49256")) {
+					templateString = templateString + "<tr><td>" + key + ":</td><td>${" + key + ":shorten}</td></tr>";
 				}
 			}
-			infoTemplate = new InfoTemplate("Validation site information", "<div id='siteImage'><img src='images/loading.gif' id='loading'><img id='geeimage'></div><div style='width:200px;display:inline-block;font-size:x-small'><table style='width:100%'>" + templateString + "</table></div>");
+			infoTemplate = new InfoTemplate("Validation site information", "<div id='siteImage'><img src='images/loading.gif' id='loading'><img id='geeimage'></div><div style='width:200px;font-size:x-small'><table style='width:100%'>" + templateString + "</table></div>");
 			graphic.attributes = properties;
 			graphic.setInfoTemplate(infoTemplate);
 			map.infoWindow.setContent(graphic.getContent());
 			map.infoWindow.setTitle("Validation site information");
-			map.infoWindow.resize(700, 400);
+			map.infoWindow.resize(270, 440);
 			map.infoWindow.show(graphic.geometry);
 		};
 		rest_getConfusionMatrix(selectedFeatures);
 	}
+
+	shorten = function(value, key, data) {
+		if (key === 'sceneid') {
+			return value.substring(20);
+		} else {
+			return value;
+		}
+	};
 
 	function getPointFromWFSFeature(feature) {
 		var coord = feature.geometry.coordinates;
