@@ -1,87 +1,63 @@
 /*jslint plusplus: true */
-require(["dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapToggle", "esri/graphicsUtils", "dojo/dom-style", "dojo/dom-construct", "dojox/charting/themes/ThreeD", "dojox/charting/Chart", "dojo/io-query", "dgrid/Grid", "dojo/request/script", "dojo/Deferred", "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/keys", "dojox/gfx", "esri/geometry/Point", "esri/symbols/SimpleLineSymbol", "dojo/_base/Color", "esri/symbols/SimpleMarkerSymbol", "esri/graphic", "esri/layers/GraphicsLayer", "dojo/_base/array", "esri/geometry/screenUtils", "esri/geometry/Polygon", "dojo/request/xhr", "esri/geometry/webMercatorUtils", "dojo/on", "esri/SpatialReference", "esri/geometry/Extent", "esri/layers/WMSLayerInfo", "esri/layers/WMSLayer", "esri/map", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!", "dojox/charting/plot2d/Lines", "dojox/charting/axis2d/Default"], function(lang, HorizontalSlider, BasemapToggle, graphicsUtils, domStyle, domConstruct, blue, Chart, ioQuery, Grid, script, Deferred, dom, domConstruct, domAttr, keys, gfx, Point, SimpleLineSymbol, Color, SimpleMarkerSymbol, Graphic, GraphicsLayer, array, screenUtils, Polygon, xhr, webMercatorUtils, on, SpatialReference, Extent, WMSLayerInfo, WMSLayer, Map, BorderContainer, ContentPane) {
-	var WMS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/wms";
+require({
+	async : true,
+	packages : [{
+		name : "jrc",
+		location : "//andrewcottam.github.io/cdn/scripts/"
+	}]
+}, ["jrc/wmsFilterLayer", "dijit/registry", "dojo/parser", "dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapToggle", "esri/graphicsUtils", "dojo/dom-style", "dojo/dom-construct", "dojox/charting/themes/ThreeD", "dojox/charting/Chart", "dojo/io-query", "dgrid/Grid", "dojo/request/script", "dojo/Deferred", "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/keys", "dojox/gfx", "esri/geometry/Point", "esri/symbols/SimpleLineSymbol", "dojo/_base/Color", "esri/symbols/SimpleMarkerSymbol", "esri/graphic", "esri/layers/GraphicsLayer", "dojo/_base/array", "esri/geometry/screenUtils", "esri/geometry/Polygon", "dojo/request/xhr", "esri/geometry/webMercatorUtils", "dojo/on", "esri/SpatialReference", "esri/geometry/Extent", "esri/layers/WMSLayerInfo", "esri/layers/WMSLayer", "esri/map", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!", "dojox/charting/plot2d/Lines", "dojox/charting/axis2d/Default"], function(wmsFilterLayer, registry, parser, lang, HorizontalSlider, BasemapToggle, graphicsUtils, domStyle, domConstruct, blue, Chart, ioQuery, Grid, script, Deferred, dom, domConstruct, domAttr, keys, gfx, Point, SimpleLineSymbol, Color, SimpleMarkerSymbol, Graphic, GraphicsLayer, array, screenUtils, Polygon, xhr, webMercatorUtils, on, SpatialReference, Extent, WMSLayerInfo, WMSLayer, Map, BorderContainer, ContentPane) {
+	var WMS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/wms?";
 	var WFS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/ows";
-	var LAYER_NAME = "lrmexternal:_gee_validated_sites_subset_pixel_values";
+	var LAYER_NAME = "lrmexternal:gee_validation_results";
 	var IDENTIFY_RADIUS = 3;
 	var LASSO_SURFACE_ID = "lassoSurface";
 	var BBOXSIZE = 1910.925707126968;
 	var SITE_IMAGE_SIZE = 200;
 	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, chart;
-	// create the BorderContainer and attach it to our appLayout div - CubanShirts,Shrooms,ThreeD,Tufte
-	var appLayout = new BorderContainer({
-		design : "headline"
-	}, "appLayout");
-	appLayout.addChild(new ContentPane({
-		region : "top",
-		id : "topCP",
-		content : "Google Earth Engine Results Analyser"
-	}));
-	appLayout.addChild(new ContentPane({
-		region : "left",
-		id : "leftCP"
-	}));
-	appLayout.addChild(new ContentPane({
-		region : "center",
-		id : "centerCP",
-		content : "<div id='mapCanvas'><div id='mapDiv'><div id='BasemapToggle'></div><div id='slider'></div></div></div>"
-	}));
-	appLayout.addChild(new ContentPane({
-		region : "right",
-		id : "rightCP",
-		content : "<div id='confusionMatrixGrid' class='slate'></div><div id='chartHolder'><img src='images/loading.gif' id='loading2'><div id='spectralChart'></div></div><div id='siteImage'><img src='images/loading.gif' id='loading'><img id='geeimage'></div>",
-		splitter : true
-	}));
-	appLayout.addChild(new ContentPane({
-		region : "bottom",
-		id : "bottomCP",
-		content : "Header content (bottom)"
-	}));
-	appLayout.startup();
-	servicesDomain = (document.domain === "ehabitat-wps.jrc.it") ? "http://dopa-services.jrc.it/" : "http://dopa-services.jrc.ec.europa.eu/";
-	map = new Map("mapDiv", {
-		zoom : 3,
-		center : [0, 25],
-		basemap : "topo"
-	});
-	var toggle = new BasemapToggle({
-		map : map,
-		basemap : "satellite"
-	}, "BasemapToggle");
-	toggle.startup();
-	map.on("load", createEventListeners);
-	var layer1 = new WMSLayerInfo({
-		name : LAYER_NAME,
-		title : LAYER_NAME
-	});
-	var resourceInfo = {
-		extent : new Extent(-180, -90, 180, 90, {
-			wkid : 4326
-		}),
-		layerInfos : [layer1]
-	};
-	var wmsLayer = new WMSLayer(WMS_ENDPOINT, {
-		resourceInfo : resourceInfo,
-		visibleLayers : [LAYER_NAME]
-	});
-	wmsLayer.spatialReferences[0] = 900913;
-	selectedFeaturesLayer = new GraphicsLayer();
-	highlightedFeaturesLayer = new GraphicsLayer();
-	geeImageFeatureLayer = new GraphicsLayer();
-	map.addLayers([wmsLayer, selectedFeaturesLayer, highlightedFeaturesLayer, geeImageFeatureLayer]);
-	createConfusionMatrix();
-	createSpectralChart();
-	var slider = new HorizontalSlider({
-		name : "slider",
-		value : 1,
-		maximum : 1,
-		intermediateChanges : true,
-		onChange : function(value) {
-			map.getLayer(map.basemapLayerIds[0]).setOpacity(value);
-		}
-	}, "slider");
+	parser.parse().then(function() {
+		on(registry.byId("appliedMasks"), "change", function(value) {
+			wmsLayer.cql_filter = "applied_masks=" + value;
+			wmsLayer.refresh();
+		});
+		on(registry.byId("actualClass"), "change", function(value) {
+			wmsLayer.cql_filter = "actual_class=" + value;
+			wmsLayer.refresh();
+		});
 
-	function createEventListeners() {
+		servicesDomain = (document.domain === "ehabitat-wps.jrc.it") ? "http://dopa-services.jrc.it/" : "http://dopa-services.jrc.ec.europa.eu/";
+		map = new Map("mapDiv", {
+			zoom : 3,
+			center : [0, 25],
+			basemap : "topo"
+		});
+		var toggle = new BasemapToggle({
+			map : map,
+			basemap : "satellite"
+		}, "BasemapToggle");
+		toggle.startup();
+		map.on("load", initialiseMap);
+		createConfusionMatrix();
+		createSpectralChart();
+		var slider = new HorizontalSlider({
+			name : "slider",
+			value : 1,
+			maximum : 1,
+			intermediateChanges : true,
+			onChange : function(value) {
+				map.getLayer(map.basemapLayerIds[0]).setOpacity(value);
+			}
+		}, "slider");
+
+	});
+
+	function initialiseMap() {
+		wmsLayer = new wmsFilterLayer(WMS_ENDPOINT, LAYER_NAME);
+		wmsLayer.cql_filter = "applied_masks=1";
+		wmsLayer.crs = "EPSG:900913";
+		selectedFeaturesLayer = new GraphicsLayer();
+		highlightedFeaturesLayer = new GraphicsLayer();
+		geeImageFeatureLayer = new GraphicsLayer();
+		map.addLayers([wmsLayer, selectedFeaturesLayer, highlightedFeaturesLayer, geeImageFeatureLayer]);
 		map.on("click", mapClick);
 		map.on("mouse-down", mapMouseDown);
 		map.on("mouse-drag", mapMouseDrag);
@@ -354,7 +330,7 @@ require(["dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapTo
 					});
 				};
 			}
-			color = (feature.properties.actual_class==="3") ? "green" : "red";
+			color = (feature.properties.actual_class === "3") ? "green" : "red";
 			chart.addSeries("series" + index, pixelValues, {
 				stroke : {
 					color : color,

@@ -1,77 +1,79 @@
 html, body, #mapDiv, #mapCanvas {
-	padding:0;
-	margin:0;
-	height:100%;
-	font-family:Arial,Helvetica,sans-serif;
+	padding: 0;
+	margin: 0;
+	height: 100%;
+	width: 100%;
+	font-family: Arial, Helvetica, sans-serif;
 }
 a {
-	padding:3px;
+	padding: 3px;
 }
-#appLayout {
-	height:100%;
+#borderContainer {
+	width: 100%;
+	height: 100%;
 }
 #rightCP {
-	width:25%;
-	font-size:x-small;
+	width: 25%;
 }
 #BasemapToggle {
-	position:absolute;
-	top:20px;
-	right:20px;
-	z-index:50;
+	position: absolute;
+	top: 20px;
+	right: 20px;
+	z-index: 50;
 }
-#slider{
-	width:65px;
-	position:absolute;
-	top:102px;
-	right:20px;
-	z-index:50;
+#slider {
+	width: 65px;
+	position: absolute;
+	top: 102px;
+	right: 20px;
+	z-index: 50;
 }
 #lassoSurface {
-	position:absolute;
-	top:0px;
+	position: absolute;
+	top: 0px;
 }
 #confusionMatrixGrid {
-	width:260px;
-	margin:10px;
+	width: 260px;
+	margin: 10px;
+	font-size: x-small;
 }
 #chartHolder {
-	position:relative;
-	margin:10px;
+	position: relative;
+	margin: 10px;
 }
 #siteImage {
-	width:200px;
-	height:200px;
-	position:relative;
-	margin:10px;
+	width: 200px;
+	height: 200px;
+	position: relative;
+	margin: 10px;
 }
 #loading {
-	position:absolute;
-	top:92px;
-	left:92px;
-	display:none;
+	position: absolute;
+	top: 92px;
+	left: 92px;
+	display: none;
 }
 #loading2 {
-	position:absolute;
-	top:70px;
-	left:117px;
-	display:none;
+	position: absolute;
+	top: 70px;
+	left: 117px;
+	display: none;
 }
 #spectralChart {
-	width:242px;
-	height:200px;
+	width: 242px;
+	height: 200px;
 }
 .dgrid {
-	height:auto !important;
+	height: auto !important;
 }
 .dgrid .dgrid-scroller {
-	position:relative;
-	overflow:visible;
-	max-height:200px;
+	position: relative;
+	overflow: visible;
+	max-height: 200px;
 }
 .dgrid-cell {
-	width:70px;
+	width: 70px;
 }
 .field-_count {
-	width:50px;
+	width: 50px;
 }
