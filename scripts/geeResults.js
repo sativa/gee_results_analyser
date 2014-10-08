@@ -13,17 +13,24 @@ require({
 	var LASSO_SURFACE_ID = "lassoSurface";
 	var BBOXSIZE = 1910.925707126968;
 	var SITE_IMAGE_SIZE = 200;
-	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, chart;
+	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, chart, actual_class, cqlFilter = {
+		"actual_class" : "-1",
+		"predicted_class" : "-1",
+		"applied_masks" : "1"
+	};
 	parser.parse().then(function() {
 		on(registry.byId("appliedMasks"), "change", function(value) {
-			wmsLayer.cql_filter = "applied_masks=" + value;
-			wmsLayer.refresh();
+			cqlFilter.applied_masks = value;
+			refreshWMSLayer();
 		});
 		on(registry.byId("actualClass"), "change", function(value) {
-			wmsLayer.cql_filter = "actual_class=" + value;
-			wmsLayer.refresh();
+			cqlFilter.actual_class = value;
+			refreshWMSLayer();
 		});
-
+		on(registry.byId("predictedClass"), "change", function(value) {
+			cqlFilter.predicted_class = value;
+			refreshWMSLayer();
+		});
 		servicesDomain = (document.domain === "ehabitat-wps.jrc.it") ? "http://dopa-services.jrc.it/" : "http://dopa-services.jrc.ec.europa.eu/";
 		map = new Map("mapDiv", {
 			zoom : 3,
@@ -49,6 +56,20 @@ require({
 		}, "slider");
 
 	});
+
+	function refreshWMSLayer() {
+		var cqlFilterString = "";
+		for (var prop in cqlFilter) {
+			if (cqlFilter[prop] !== "-1") {
+				cqlFilterString = cqlFilterString + prop + "=" + cqlFilter[prop] + " and ";
+			}
+		}
+		if (cqlFilterString.length > 0) {
+			cqlFilterString = cqlFilterString.substring(0, cqlFilterString.length - 5);
+		};
+		wmsLayer.cql_filter = cqlFilterString;
+		wmsLayer.refresh();
+	}
 
 	function initialiseMap() {
 		wmsLayer = new wmsFilterLayer(WMS_ENDPOINT, LAYER_NAME);

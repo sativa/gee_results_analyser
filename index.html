@@ -22,8 +22,8 @@
 				</div>
 			</div>
 			<div data-dojo-type="dijit/layout/ContentPane" data-dojo-props="region:'right',splitter:true" id="rightCP">
-				<div id="controlsContainer">
-					<span> Applied masks </span>
+				<div class="control">
+					<div class="label">Applied masks </div>
 					<select id="appliedMasks" data-dojo-type="dijit/form/Select">
 						<option value="1" selected="selected">None</option>
 						<option value="2">Slope</option>
@@ -31,8 +31,24 @@
 						<option value="4">Slope, NDVI, Temperature</option>
 						<option value="5">Slope, NDVI, Temperature, Bare Roc</option>
 					</select>
-					<span> Actual class </span>
+				</div>
+				<div class="control">
+					<div class="label">Actual class </div>
 					<select id="actualClass" data-dojo-type="dijit/form/Select">
+						<option value="-1" selected="selected">All</option>
+						<option value="0">Not water</option>
+						<option value="1">No data</option>
+						<option value="2">Cloud</option>
+						<option value="3">Water</option>
+						<option value="5">Ice/Snow</option>
+						<option value="6">Shadow</option>
+						<option value="8">Bare Rock</option>
+						<option value="9">Flooded Vegetation</option>
+					</select>
+				</div>
+				<div class="control">
+					<div class="label">Predicted class </div>
+					<select id="predictedClass" data-dojo-type="dijit/form/Select">
 						<option value="-1" selected="selected">All</option>
 						<option value="0">Not water</option>
 						<option value="1">No data</option>

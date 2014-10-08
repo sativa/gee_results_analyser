@@ -21,8 +21,12 @@ a {
 	right: 20px;
 	z-index: 50;
 }
-#controlsContainer {
-	margin: 10px;
+.control {
+	margin: 15px;
+}
+.label{
+	display:inline-block;
+	width: 150px;
 }
 span {
 	padding: 5px;
