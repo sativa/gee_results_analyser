@@ -59,9 +59,8 @@ span {
 
 #loading {
 	position: absolute;
-	top: 92px;
-	left: 92px;
-	display: none;
+	top: 116px;
+	left: 116px;
 }
 #loading2 {
 	position: absolute;

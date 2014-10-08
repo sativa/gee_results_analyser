@@ -405,7 +405,7 @@ require({
 	function getSiteImageUrl(site, rgb) {
 		var p = getPointFromWFSFeature(site);
 		geeImageFeatureLayer.clear();
-		//add a cross to th efeature clicked
+		//add a cross to the feature clicked
 		geeImageFeatureLayer.add(new Graphic(p, new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CROSS, 40, new SimpleLineSymbol(SimpleLineSymbol.STYLE_SOLID, new Color([255, 0, 255, 1]), 1), new Color([255, 0, 255, 1]))));
 		var sitePoint = webMercatorUtils.geographicToWebMercator(p);
 		var layersStr = rgb ? '{"sceneid":"' + site.properties.sceneid + '","redBand":"B4","greenBand":"B3","blueBand":"B2","min":0,"max":0.4}' : '{"sceneid":"' + site.properties.sceneid + '","redBand":"B7","greenBand":"B5","blueBand":"B4","min":0,"max":0.4}';
@@ -424,8 +424,6 @@ require({
 			BBOX : bbStr
 		};
 		var paramsQuery = ioQuery.objectToQuery(params);
-		domStyle.set("loading", "display", "block");
-		domStyle.set("loading", "z-index", "1");
 		script.get(servicesDomain + "gee/WMS_image", {
 			query : params,
 			jsonp : "callback"
