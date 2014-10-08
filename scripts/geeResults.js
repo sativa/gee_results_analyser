@@ -5,7 +5,7 @@ require({
 		name : "jrc",
 		location : "//andrewcottam.github.io/cdn/scripts/"
 	}]
-}, ["jrc/wmsFilterLayer", "dijit/registry", "dojo/parser", "dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapToggle", "esri/graphicsUtils", "dojo/dom-style", "dojo/dom-construct", "dojox/charting/themes/ThreeD", "dojox/charting/Chart", "dojo/io-query", "dgrid/Grid", "dojo/request/script", "dojo/Deferred", "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/keys", "dojox/gfx", "esri/geometry/Point", "esri/symbols/SimpleLineSymbol", "dojo/_base/Color", "esri/symbols/SimpleMarkerSymbol", "esri/graphic", "esri/layers/GraphicsLayer", "dojo/_base/array", "esri/geometry/screenUtils", "esri/geometry/Polygon", "dojo/request/xhr", "esri/geometry/webMercatorUtils", "dojo/on", "esri/SpatialReference", "esri/geometry/Extent", "esri/layers/WMSLayerInfo", "esri/layers/WMSLayer", "esri/map", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!", "dojox/charting/plot2d/Lines", "dojox/charting/axis2d/Default"], function(wmsFilterLayer, registry, parser, lang, HorizontalSlider, BasemapToggle, graphicsUtils, domStyle, domConstruct, blue, Chart, ioQuery, Grid, script, Deferred, dom, domConstruct, domAttr, keys, gfx, Point, SimpleLineSymbol, Color, SimpleMarkerSymbol, Graphic, GraphicsLayer, array, screenUtils, Polygon, xhr, webMercatorUtils, on, SpatialReference, Extent, WMSLayerInfo, WMSLayer, Map, BorderContainer, ContentPane) {
+}, ["esri/domUtils", "jrc/wmsFilterLayer", "dijit/registry", "dojo/parser", "dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapToggle", "esri/graphicsUtils", "dojo/dom-style", "dojo/dom-construct", "dojox/charting/themes/ThreeD", "dojox/charting/Chart", "dojo/io-query", "dgrid/Grid", "dojo/request/script", "dojo/Deferred", "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/keys", "dojox/gfx", "esri/geometry/Point", "esri/symbols/SimpleLineSymbol", "dojo/_base/Color", "esri/symbols/SimpleMarkerSymbol", "esri/graphic", "esri/layers/GraphicsLayer", "dojo/_base/array", "esri/geometry/screenUtils", "esri/geometry/Polygon", "dojo/request/xhr", "esri/geometry/webMercatorUtils", "dojo/on", "esri/SpatialReference", "esri/geometry/Extent", "esri/layers/WMSLayerInfo", "esri/layers/WMSLayer", "esri/map", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!", "dojox/charting/plot2d/Lines", "dojox/charting/axis2d/Default"], function(domUtils, wmsFilterLayer, registry, parser, lang, HorizontalSlider, BasemapToggle, graphicsUtils, domStyle, domConstruct, blue, Chart, ioQuery, Grid, script, Deferred, dom, domConstruct, domAttr, keys, gfx, Point, SimpleLineSymbol, Color, SimpleMarkerSymbol, Graphic, GraphicsLayer, array, screenUtils, Polygon, xhr, webMercatorUtils, on, SpatialReference, Extent, WMSLayerInfo, WMSLayer, Map, BorderContainer, ContentPane) {
 	var WMS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/wms?";
 	var WFS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/ows";
 	var LAYER_NAME = "lrmexternal:gee_validation_results";
@@ -64,6 +64,14 @@ require({
 		map.on("mouse-up", mapMouseUp);
 		on(document, "keydown", keydown);
 		on(document, "keyup", keyup);
+		on(wmsLayer, "update-start", function(evt) {
+			domUtils.show(dom.byId("mapLoadingImg"));
+		});
+		on(wmsLayer, "update-end", function(evt) {
+			domUtils.hide(dom.byId("mapLoadingImg"));
+		});
+		domStyle.set(dom.byId("mapLoadingImg"), "left", (map.width / 2) - 8 + "px");
+		domStyle.set(dom.byId("mapLoadingImg"), "top", (map.height / 2) - 8 + "px");
 	}
 
 	function createConfusionMatrix() {

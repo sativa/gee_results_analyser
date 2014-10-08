@@ -21,6 +21,12 @@ a {
 	right: 20px;
 	z-index: 50;
 }
+#controlsContainer {
+	margin: 10px;
+}
+span {
+	padding: 5px;
+}
 #slider {
 	width: 65px;
 	position: absolute;
@@ -58,6 +64,9 @@ a {
 	top: 70px;
 	left: 117px;
 	display: none;
+}
+#mapLoadingImg {
+	position: absolute;
 }
 #spectralChart {
 	width: 242px;
