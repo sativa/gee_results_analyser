@@ -52,11 +52,11 @@ span {
 	margin: 10px;
 }
 #siteImage {
-	width: 200px;
-	height: 200px;
-	position: relative;
-	margin: 10px;
+	display:inline-block;
+	width: 250px;
+	height: 250px;
 }
+
 #loading {
 	position: absolute;
 	top: 92px;

@@ -5,17 +5,17 @@ require({
 		name : "jrc",
 		location : "//andrewcottam.github.io/cdn/scripts/"
 	}]
-}, ["esri/domUtils", "jrc/wmsFilterLayer", "dijit/registry", "dojo/parser", "dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapToggle", "esri/graphicsUtils", "dojo/dom-style", "dojo/dom-construct", "dojox/charting/themes/ThreeD", "dojox/charting/Chart", "dojo/io-query", "dgrid/Grid", "dojo/request/script", "dojo/Deferred", "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/keys", "dojox/gfx", "esri/geometry/Point", "esri/symbols/SimpleLineSymbol", "dojo/_base/Color", "esri/symbols/SimpleMarkerSymbol", "esri/graphic", "esri/layers/GraphicsLayer", "dojo/_base/array", "esri/geometry/screenUtils", "esri/geometry/Polygon", "dojo/request/xhr", "esri/geometry/webMercatorUtils", "dojo/on", "esri/SpatialReference", "esri/geometry/Extent", "esri/layers/WMSLayerInfo", "esri/layers/WMSLayer", "esri/map", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!", "dojox/charting/plot2d/Lines", "dojox/charting/axis2d/Default"], function(domUtils, wmsFilterLayer, registry, parser, lang, HorizontalSlider, BasemapToggle, graphicsUtils, domStyle, domConstruct, blue, Chart, ioQuery, Grid, script, Deferred, dom, domConstruct, domAttr, keys, gfx, Point, SimpleLineSymbol, Color, SimpleMarkerSymbol, Graphic, GraphicsLayer, array, screenUtils, Polygon, xhr, webMercatorUtils, on, SpatialReference, Extent, WMSLayerInfo, WMSLayer, Map, BorderContainer, ContentPane) {
+}, ["esri/InfoTemplate", "esri/domUtils", "jrc/wmsFilterLayer", "dijit/registry", "dojo/parser", "dojo/_base/lang", "dijit/form/HorizontalSlider", "esri/dijit/BasemapToggle", "esri/graphicsUtils", "dojo/dom-style", "dojo/dom-construct", "dojox/charting/themes/ThreeD", "dojox/charting/Chart", "dojo/io-query", "dgrid/Grid", "dojo/request/script", "dojo/Deferred", "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/keys", "dojox/gfx", "esri/geometry/Point", "esri/symbols/SimpleLineSymbol", "dojo/_base/Color", "esri/symbols/SimpleMarkerSymbol", "esri/graphic", "esri/layers/GraphicsLayer", "dojo/_base/array", "esri/geometry/screenUtils", "esri/geometry/Polygon", "dojo/request/xhr", "esri/geometry/webMercatorUtils", "dojo/on", "esri/SpatialReference", "esri/geometry/Extent", "esri/layers/WMSLayerInfo", "esri/layers/WMSLayer", "esri/map", "dijit/layout/BorderContainer", "dijit/layout/ContentPane", "dojo/domReady!", "dojox/charting/plot2d/Lines", "dojox/charting/axis2d/Default"], function(InfoTemplate, domUtils, wmsFilterLayer, registry, parser, lang, HorizontalSlider, BasemapToggle, graphicsUtils, domStyle, domConstruct, blue, Chart, ioQuery, Grid, script, Deferred, dom, domConstruct, domAttr, keys, gfx, Point, SimpleLineSymbol, Color, SimpleMarkerSymbol, Graphic, GraphicsLayer, array, screenUtils, Polygon, xhr, webMercatorUtils, on, SpatialReference, Extent, WMSLayerInfo, WMSLayer, Map, BorderContainer, ContentPane) {
 	var WMS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/wms?";
 	var WFS_ENDPOINT = "http://lrm-maps.jrc.ec.europa.eu/geoserver/lrmexternal/ows";
 	var LAYER_NAME = "lrmexternal:gee_validation_results";
 	var IDENTIFY_RADIUS = 3;
 	var LASSO_SURFACE_ID = "lassoSurface";
 	var BBOXSIZE = 1910.925707126968;
-	var SITE_IMAGE_SIZE = 200;
+	var SITE_IMAGE_SIZE = 250;
 	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, chart, actual_class, cqlFilter = {
 		"actual_class" : "-1",
-		"predicted_class" : "-1",
+		"predicted_class" : "3",
 		"applied_masks" : "1"
 	};
 	parser.parse().then(function() {
@@ -58,6 +58,12 @@ require({
 	});
 
 	function refreshWMSLayer() {
+		cqlFilterString = getCQLFilterString();
+		wmsLayer.cql_filter = cqlFilterString;
+		wmsLayer.refresh();
+	}
+
+	function getCQLFilterString() {
 		var cqlFilterString = "";
 		for (var prop in cqlFilter) {
 			if (cqlFilter[prop] !== "-1") {
@@ -67,13 +73,12 @@ require({
 		if (cqlFilterString.length > 0) {
 			cqlFilterString = cqlFilterString.substring(0, cqlFilterString.length - 5);
 		};
-		wmsLayer.cql_filter = cqlFilterString;
-		wmsLayer.refresh();
+		return cqlFilterString;
 	}
 
 	function initialiseMap() {
 		wmsLayer = new wmsFilterLayer(WMS_ENDPOINT, LAYER_NAME);
-		wmsLayer.cql_filter = "applied_masks=1";
+		wmsLayer.cql_filter = "applied_masks=1 and predicted_class=3";
 		wmsLayer.crs = "EPSG:900913";
 		selectedFeaturesLayer = new GraphicsLayer();
 		highlightedFeaturesLayer = new GraphicsLayer();
@@ -269,12 +274,14 @@ require({
 		var selectionAreaMap = screenUtils.toMapGeometry(map.extent, map.width, map.height, selectionAreaScreen);
 		var extent = webMercatorUtils.webMercatorToGeographic(selectionAreaMap).getExtent();
 		selectedFeaturesLayer.clear();
+		cqlFilterString = getCQLFilterString() + " and BBOX(geom," + extent.xmin.toString() + "," + extent.ymin.toString() + "," + extent.xmax.toString() + "," + extent.ymax.toString() + ")";
 		var wfsquery = {
+			CQL_FILTER : cqlFilterString,
 			REQUEST : 'GetFeature',
 			SERVICE : 'WFS',
 			VERSION : '1.0.0',
 			TYPENAME : LAYER_NAME,
-			BBOX : extent.xmin.toString() + "," + extent.ymin.toString() + "," + extent.xmax.toString() + "," + extent.ymax.toString(),
+
 			outputFormat : "json"
 		};
 		//run a synchronous query to get the features from WFS
@@ -293,16 +300,30 @@ require({
 	}
 
 	function selectFeatures(features) {
+		var graphic;
 		array.forEach(features, function(item) {
 			var point = getPointFromWFSFeature(item);
 			var geometry = webMercatorUtils.geographicToWebMercator(point);
-			var graphic = new Graphic(point, new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 6, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255, 0, 0, 1]), 1), new Color([0, 255, 255, 1])), item.properties);
+			graphic = new Graphic(point, new SimpleMarkerSymbol(SimpleMarkerSymbol.STYLE_CIRCLE, 6, new SimpleLineSymbol(SimpleLineSymbol.STYLE_NULL, new Color([255, 0, 0, 1]), 1), new Color([0, 255, 255, 1])), item.properties);
 			selectedFeaturesLayer.add(graphic);
 			selectedFeatures.push(item.properties.objectid);
 		});
 		if (features.length > 0) {
 			getSiteImageUrl(features[0], true);
 			populateSpectralChart(features);
+			var templateString = "", properties = features[0].properties;
+			for (key in properties) {
+				if ((key !== "actual_class") && (key !== "actual_class_label") && (key !== "applied_masks") && (key !== "hsv_bands") && (key !== "predicted_class") && (key !== "predicted_class_label") && (key !== "bqa")) {
+					templateString = templateString + "<tr><td>" + key + ":</td><td>${" + key + "}</td></tr>";
+				}
+			}
+			infoTemplate = new InfoTemplate("Validation site information", "<div id='siteImage'><img src='images/loading.gif' id='loading'><img id='geeimage'></div><div style='width:200px;display:inline-block;font-size:x-small'><table style='width:100%'>" + templateString + "</table></div>");
+			graphic.attributes = properties;
+			graphic.setInfoTemplate(infoTemplate);
+			map.infoWindow.setContent(graphic.getContent());
+			map.infoWindow.setTitle("Validation site information");
+			map.infoWindow.resize(700, 400);
+			map.infoWindow.show(graphic.geometry);
 		};
 		rest_getConfusionMatrix(selectedFeatures);
 	}
