@@ -47,6 +47,11 @@ span {
 	margin: 10px;
 	font-size: x-small;
 }
+#confusionMatrixGrid2 {
+	width: 360px;
+	margin: 10px;
+	font-size: x-small;
+}
 #chartHolder {
 	position: relative;
 	margin: 10px;

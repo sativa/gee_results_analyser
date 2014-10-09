@@ -13,7 +13,7 @@ require({
 	var LASSO_SURFACE_ID = "lassoSurface";
 	var BBOXSIZE = 1910.925707126968;
 	var SITE_IMAGE_SIZE = 250;
-	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, chart, actual_class, cqlFilter = {
+	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, confusionMatrixGrid2, chart, actual_class, cqlFilter = {
 		"actual_class" : "-1",
 		"predicted_class" : "3",
 		"applied_masks" : "1"
@@ -22,6 +22,7 @@ require({
 		on(registry.byId("appliedMasks"), "change", function(value) {
 			cqlFilter.applied_masks = value;
 			refreshWMSLayer();
+			getConfusionMatrix();
 		});
 		on(registry.byId("actualClass"), "change", function(value) {
 			cqlFilter.actual_class = value;
@@ -44,6 +45,7 @@ require({
 		toggle.startup();
 		map.on("load", initialiseMap);
 		createConfusionMatrix();
+		createConfusionMatrix2();
 		createSpectralChart();
 		var slider = new HorizontalSlider({
 			name : "slider",
@@ -54,7 +56,7 @@ require({
 				map.getLayer(map.basemapLayerIds[0]).setOpacity(value);
 			}
 		}, "slider");
-
+		getConfusionMatrix();
 	});
 
 	function refreshWMSLayer() {
@@ -131,7 +133,74 @@ require({
 		confusionMatrixGrid = new Grid({
 			columns : columns
 		}, "confusionMatrixGrid");
+	}
 
+	function createConfusionMatrix2() {
+		var columns = [{
+			label : 'Predicted',
+			field : 'predicted'
+		}, {
+			label : 'water',
+			field : 'water'
+		}, {
+			label : 'not water',
+			field : 'not_water'
+		}, {
+			label : 'total',
+			field : 'total'
+		}, {
+			label : 'percent',
+			field : 'percent'
+		}];
+		confusionMatrixGrid2 = new Grid({
+			columns : columns
+		}, "confusionMatrixGrid2");
+	}
+
+	function getConfusionMatrix() {
+		var deferred;
+		deferred = script.get(servicesDomain + "services/especies/get_water_detection_confusion_matrix", {
+			query : {
+				applied_masks : cqlFilter.applied_masks,
+				format : 'json'
+			},
+			jsonp : "callback"
+		});
+		deferred.then(function(response) {
+			if (!response.metadata.success) {
+				alert('Unable to get Confusion Matrix data. ' + response.metadata.error);
+			} else {
+				var nw_nw = response.records[0].count;
+				var nw_w = response.records[1].count;
+				var w_nw = response.records[2].count;
+				var w_w = response.records[3].count;
+				var confusionData = [];
+				confusionData.push({
+					"predicted" : "water",
+					"water" : w_w,
+					"not_water" : w_nw,
+					"total" : (w_w + w_nw),
+					"percent" : ((w_w * 100) / (w_w + w_nw)).toFixed(2) + " %"
+				});
+				confusionData.push({
+					"predicted" : "not water",
+					"water" : nw_w,
+					"not_water" : nw_nw,
+					"total" : (nw_w + nw_nw),
+					"percent" : ((nw_nw * 100) / (nw_w + nw_nw)).toFixed(2) + " %"
+				});
+				confusionData.push({
+					"predicted" : "total",
+					"water" : w_w + nw_w,
+					"not_water" : w_nw + nw_nw,
+					"total" : (w_w + w_nw) + (nw_w + nw_nw),
+					"percent" : (((w_w + nw_nw) * 100) / ((w_w + w_nw) + (nw_w + nw_nw))).toFixed(2) + " %"
+				});
+				confusionMatrixGrid2.refresh();
+				confusionMatrixGrid2.renderArray(confusionData);
+			}
+		});
+		return deferred;
 	}
 
 	function createSpectralChart() {
