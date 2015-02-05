@@ -13,7 +13,7 @@ require({
 	var LASSO_SURFACE_ID = "lassoSurface";
 	var BBOXSIZE = 1910.925707126968;
 	var SITE_IMAGE_SIZE = 250;
-	var map, servicesDomain, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, confusionMatrixGrid2, chart, actual_class, cqlFilter = {
+	var map, restServerUrl, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, confusionMatrixGrid2, chart, actual_class, cqlFilter = {
 		"actual_class" : "-1",
 		"predicted_class" : "3",
 		"applied_masks" : "1"
@@ -32,7 +32,7 @@ require({
 			cqlFilter.predicted_class = value;
 			refreshWMSLayer();
 		});
-		servicesDomain = (document.domain === "ehabitat-wps.jrc.it") ? "http://dopa-services.jrc.it/" : "http://dopa-services.jrc.ec.europa.eu/";
+		restServerUrl = (document.domain === "ehabitat-wps.jrc.it") ? "http://dopa-services.jrc.it/gee" : "http://dopa-services.jrc.ec.europa.eu/gee";
 		map = new Map("mapDiv", {
 			zoom : 3,
 			center : [0, 25],
@@ -159,7 +159,7 @@ require({
 
 	function getConfusionMatrix() {
 		var deferred;
-		deferred = script.get(servicesDomain + "services/especies/get_water_detection_confusion_matrix", {
+		deferred = script.get(restServerUrl + "/especies/get_water_detection_confusion_matrix", {
 			query : {
 				applied_masks : cqlFilter.applied_masks,
 				format : 'json'
@@ -420,7 +420,7 @@ require({
 
 	function rest_getConfusionMatrix(objectids) {
 		var deferred;
-		deferred = script.get(servicesDomain + "services/especies/_get_gee_validated_sites_confusion_matrix", {
+		deferred = script.get(restServerUrl + "/especies/_get_gee_validated_sites_confusion_matrix", {
 			query : {
 				objectids : objectids.join(","),
 				format : 'json'
@@ -493,7 +493,7 @@ require({
 			BBOX : bbStr
 		};
 		var paramsQuery = ioQuery.objectToQuery(params);
-		script.get(servicesDomain + "gee/WMS_image", {
+		script.get(restServerUrl + "/WMS_image", {
 			query : params,
 			jsonp : "callback"
 		}).then(lang.hitch(p, function(response) {
