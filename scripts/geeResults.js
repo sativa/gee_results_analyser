@@ -13,7 +13,7 @@ require({
 	var LASSO_SURFACE_ID = "lassoSurface";
 	var BBOXSIZE = 1910.925707126968;
 	var SITE_IMAGE_SIZE = 250;
-	var map, restServerUrl, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, confusionMatrixGrid2, chart, actual_class, cqlFilter = {
+	var map, restServerUrl, geeServerUrl, selectedFeaturesLayer, startPoint, lassoSurface, selectedFeatures = [], confusionMatrixGrid, confusionMatrixGrid2, chart, actual_class, cqlFilter = {
 		"actual_class" : "-1",
 		"predicted_class" : "3",
 		"applied_masks" : "1"
@@ -32,7 +32,8 @@ require({
 			cqlFilter.predicted_class = value;
 			refreshWMSLayer();
 		});
-		restServerUrl = (document.domain === "ehabitat-wps.jrc.it") ? "http://dopa-services.jrc.it/gee" : "http://dopa-services.jrc.ec.europa.eu/gee";
+		restServerUrl = (document.domain !== "andrewcottam.github.io") ? "http://dopa-services.jrc.it/services/gee" : "http://dopa-services.jrc.ec.europa.eu/services/services/gee";
+		geeServerUrl = (document.domain !== "andrewcottam.github.io") ? "http://dopa-services.jrc.it/gee" : "http://dopa-services.jrc.ec.europa.eu/services/gee";
 		map = new Map("mapDiv", {
 			zoom : 3,
 			center : [0, 25],
@@ -493,7 +494,7 @@ require({
 			BBOX : bbStr
 		};
 		var paramsQuery = ioQuery.objectToQuery(params);
-		script.get(restServerUrl + "/WMS_image", {
+		script.get(geeServerUrl + "/WMS_image", {
 			query : params,
 			jsonp : "callback"
 		}).then(lang.hitch(p, function(response) {
