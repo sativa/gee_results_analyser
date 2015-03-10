@@ -33,7 +33,7 @@ require({
 			refreshWMSLayer();
 		});
 		restServerUrl = (document.domain !== "andrewcottam.github.io") ? "http://dopa-services.jrc.it/services/gee" : "http://dopa-services.jrc.ec.europa.eu/services/gee";
-		geeServerUrl = (document.domain !== "andrewcottam.github.io") ? "http://dopa-services.jrc.it/gee" : "http://dopa-services.jrc.ec.europa.eu/services/gee";
+		geeServerUrl = (document.domain !== "andrewcottam.github.io") ? "http://dopa-services.jrc.it/gee" : "http://dopa-services.jrc.ec.europa.eu/gee";
 		map = new Map("mapDiv", {
 			zoom : 3,
 			center : [0, 25],
